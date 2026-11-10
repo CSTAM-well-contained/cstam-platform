@@ -22,3 +22,6 @@ services:
       CSTAM_TEAM_SG_ID: ${CSTAM_TEAM_SG_ID:?run make felcloud-ids}
     volumes:
       - ${OS_CLOUDS_YAML:-${HOME}/.config/openstack/clouds.yaml}:/etc/openstack/clouds.yaml:ro
+  frontend:
+    environment:
+      STACK_MODE: felcloud

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/demo.sh: run and drive the CSTAM platform for a jury. Needs Docker (with compose),
 # curl, jq and openssl. Everything talks to the stack the way a user would: the REST API on
-# localhost:8443 and the "floating IP" edge on localhost:8000.
+# localhost:8080/v1 (through the console) and the "floating IP" edge on localhost:8000.
 #
 #   up [felcloud]       build and start the stack (felcloud: team sandboxes = real FelCloud VMs)
 #   urls                console, API, tokens and team URLs
@@ -58,7 +58,7 @@ ensure_env_quiet() { [ -s .env ] || ensure_env; load_env; }
 ensure_env_quiet
 HACK=${HACK:-demo}
 DOMAIN=$HACK.localhost
-API="http://127.0.0.1:${CPD_PORT:-8443}"
+API="http://127.0.0.1:${FRONTEND_PORT:-8080}"   # the console proxies /v1 and /healthz to cpd
 EDGE="http://127.0.0.1:${EDGE_PORT:-8000}"
 CONSOLE="http://localhost:${FRONTEND_PORT:-8080}"
 
@@ -174,9 +174,8 @@ check_subnet() {
 urls() {
   cat <<EOF
 
-  Admin console (React)   $CONSOLE
-  Built-in dashboard      http://localhost:${CPD_PORT:-8443}/
-  REST API                http://localhost:${CPD_PORT:-8443}/v1/...
+  Admin console           $CONSOLE
+  REST API                $CONSOLE/v1/...   (Authorization: Bearer <token>)
   Admin token             $CSTAM_ADMIN_TOKEN
   Viewer token (jury)     ${CSTAM_VIEWER_TOKEN:-none}
   Team pages              http://<team>.$DOMAIN:${EDGE_PORT:-8000}/   (through the edge = floating IP -> VIP)

@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/layout/confirm";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { Field, Input } from "@/components/ui/input";
+import { usePublicEnv } from "@/lib/public-url";
 import { hackathonSchema, type HackathonForm, type HackathonValues } from "@/lib/validation";
 
 export function NewHackathonDialog({
@@ -17,6 +18,7 @@ export function NewHackathonDialog({
   onOpenChange: (o: boolean) => void;
 }) {
   const navigate = useNavigate();
+  const { mode } = usePublicEnv();
   const form = useForm<HackathonForm, unknown, HackathonValues>({
     resolver: zodResolver(hackathonSchema),
     defaultValues: { name: "", domain: "", lease_minutes: 120 },
@@ -63,10 +65,18 @@ export function NewHackathonDialog({
               aria-invalid={!!errors.name}
             />
           </Field>
-          <Field label="Domain" error={errors.domain?.message}>
+          <Field
+            label="Domain"
+            error={errors.domain?.message}
+            hint={
+              mode === "local"
+                ? "local stack: end it with .localhost (e.g. hack1.localhost) so the browser can open team pages"
+                : undefined
+            }
+          >
             <Input
               {...form.register("domain")}
-              placeholder="hack1.cstam.felcloud.tn"
+              placeholder={mode === "local" ? "hack1.localhost" : "hack1.cstam.felcloud.tn"}
               autoComplete="off"
               aria-invalid={!!errors.domain}
             />

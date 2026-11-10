@@ -28,7 +28,22 @@ make seed      # hackathon "demo" with 4 teams, each checked through the VIP
 ```
 
 Open **http://localhost:8080** (React console) and paste the admin token that `make up` printed
-(`make urls` shows it again). Team pages are at `http://team01.demo.localhost:8000/`.
+(`make urls` shows it again). The console is the only UI, and it also serves the REST API at
+`localhost:8080/v1` (nginx proxies it to cpd, which is not published on its own).
+
+**Team pages** are at `http://<team>.<hackathon domain>:8000/`, e.g. `http://team01.demo.localhost:8000/`.
+The **open** link next to each ready team in the console builds that URL for you. Two rules apply locally:
+
+- Port 8000 is the edge (the local "floating IP"). Set `EDGE_PORT=80` in `.env` for URLs without a port,
+  if nothing else on your machine uses port 80.
+- The hackathon domain must end in `.localhost` (e.g. `hack1.localhost`), because browsers resolve any
+  `*.localhost` name to your own machine. A domain like `hack1.cstam.felcloud.tn` is real DNS that points
+  nowhere, so its team pages can't open locally. Test without a browser:
+  `curl -H "Host: team01.demo.localhost" http://localhost:8000/`
+
+**Admin or viewer token:** the admin token controls everything (spin up, tear down, failover, config,
+rollback). The viewer token sees every page live, but the console hides the buttons and the API answers
+403 to any change. Give the viewer token to the jury or mentors so they can look around safely.
 
 | Command | What it shows |
 | --- | --- |
@@ -112,9 +127,8 @@ Isolation between teams is enforced by Neutron security groups on FelCloud, not 
 ```bash
 make test                        # Go and frontend unit tests, in containers
 cd backend && go test ./...      # with a local Go 1.25
-cd frontend && npm ci && CPD_URL=http://localhost:8443 npm run dev   # console with hot reload against the stack
+cd frontend && npm ci && CPD_URL=http://localhost:8080 npm run dev   # console with hot reload against the stack
 ```
 
 API contract: `backend/api/openapi.yaml`. Regenerate the console types with `npm run gen:api` in `frontend/`.
-Tokens: `CSTAM_ADMIN_TOKEN` controls everything. `CSTAM_VIEWER_TOKEN` is read-only (give that one to the jury).
 `QUARANTINE=10s` in `.env` keeps IP recycling visible in a demo. Production uses 60s.

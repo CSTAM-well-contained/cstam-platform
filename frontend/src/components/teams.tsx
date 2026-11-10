@@ -6,7 +6,7 @@ import { useSearchParams } from "react-router";
 import { api, ApiError, call, errorText, type Team } from "@/api/client";
 import { useAction, useHackathons, useIsAdmin, useTeam } from "@/api/queries";
 import { ConfirmDialog } from "@/components/layout/confirm";
-import { Countdown, Mono, RelativeTime, StateLabel } from "@/components/status/status";
+import { Countdown, Mono, RelativeTime, StateLabel, TeamLink } from "@/components/status/status";
 import { EmptyState, SkeletonRows, Table, Td, Th, Tr } from "@/components/tables/table";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, SheetContent } from "@/components/ui/dialog";
@@ -144,6 +144,7 @@ export function TeamsTable({
                 </Td>
                 <Td onClick={(e) => e.stopPropagation()}>
                   <Mono copy="subdomain">{t.fqdn}</Mono>
+                  <TeamLink fqdn={t.fqdn} ready={t.state === "ready"} />
                 </Td>
                 <Td onClick={(e) => e.stopPropagation()}>
                   <Mono copy="IP">{t.ip}</Mono>
@@ -228,6 +229,7 @@ export function TeamDrawer() {
               <Detail k="Hackathon">{t.hackathon}</Detail>
               <Detail k="Subdomain">
                 <Mono copy="subdomain">{t.fqdn}</Mono>
+                <TeamLink fqdn={t.fqdn} ready={t.state === "ready"} />
               </Detail>
               <Detail k="Private IP">
                 <Mono copy="IP">{t.ip}</Mono>

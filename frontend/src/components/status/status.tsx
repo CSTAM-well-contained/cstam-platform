@@ -1,7 +1,8 @@
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, ExternalLink } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { ago, exact, left } from "@/lib/format";
+import { teamUrl, usePublicEnv } from "@/lib/public-url";
 import { useNow } from "@/lib/use-now";
 import { cn } from "@/lib/utils";
 
@@ -135,5 +136,25 @@ export function Mono({ children, copy }: { children: string | number | undefined
       {children}
       {copy && <CopyButton value={String(children)} label={copy} />}
     </span>
+  );
+}
+
+// TeamLink: opens the team's page through the public entry (gateways, VIP), in a new tab.
+export function TeamLink({ fqdn, ready }: { fqdn?: string; ready: boolean }) {
+  const { publicPort } = usePublicEnv();
+  if (!fqdn || !ready) return null;
+  const url = teamUrl(fqdn, publicPort);
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={`Open ${url}`}
+      aria-label={`Open ${url}`}
+      className="ml-1 inline-flex items-center gap-0.5 text-xs text-muted underline-offset-2 hover:text-fg hover:underline"
+    >
+      open
+      <ExternalLink className="size-3" aria-hidden />
+    </a>
   );
 }

@@ -1,5 +1,5 @@
 # Rendered at container start by the nginx image (envsubst on /etc/nginx/templates/*.template).
-# Only ${CPD_UPSTREAM} is substituted (NGINX_ENVSUBST_FILTER in the Dockerfile), so nginx's
+# Only ${CPD_UPSTREAM}, ${PUBLIC_PORT} and ${STACK_MODE} are substituted (NGINX_ENVSUBST_FILTER in the Dockerfile), so nginx's
 # own $variables are left alone.
 
 server {
@@ -24,6 +24,13 @@ server {
         proxy_hide_header X-Frame-Options;
         proxy_hide_header X-Content-Type-Options;
         proxy_hide_header Referrer-Policy;
+    }
+    # public facts for the console: the port team pages are published on and the run mode
+    location = /env.json {
+        default_type application/json;
+        add_header Cache-Control "no-store" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        return 200 '{"publicPort":"${PUBLIC_PORT}","mode":"${STACK_MODE}"}';
     }
     location = /healthz {
         proxy_pass ${CPD_UPSTREAM};

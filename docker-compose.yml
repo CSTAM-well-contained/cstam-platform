@@ -1,8 +1,8 @@
 # CSTAM, the whole platform on one machine, with FelCloud's IP plan (10.20.0.0/24):
 #
 #   10.20.0.4   postgres     source of truth (teams, leases, routes, events)
-#   10.20.0.5   cpd          control plane: REST API, IPAM, lifecycle  -> http://localhost:8443
-#   10.20.0.6   frontend     React admin console                       -> http://localhost:8080
+#   10.20.0.5   cpd          control plane: REST API, IPAM, lifecycle  (reached through the frontend)
+#   10.20.0.6   frontend     React admin console + /v1 API proxy       -> http://localhost:8080
 #   10.20.0.9   edge         the "floating IP": localhost:8000 -> VIP  -> http://<team>.demo.localhost:8000
 #   10.20.0.10  VIP          held by the MASTER gateway (keepalived)
 #   10.20.0.11  gw1          HAProxy + keepalived + gwagent, priority 150 (MASTER at start)
@@ -60,7 +60,6 @@ services:
       # the default team page config is written here and bind-mounted into each team
       # container by the Docker daemon, so the path must be the same on both sides
       - /tmp/cstam-docker-sandbox:/tmp/cstam-docker-sandbox
-    ports: ["${CPD_PORT:-8443}:8443"]
     networks: { cstam-net: { ipv4_address: 10.20.0.5 } }
     depends_on:
       postgres: { condition: service_healthy }
@@ -104,6 +103,8 @@ services:
     restart: unless-stopped
     environment:
       CPD_UPSTREAM: http://10.20.0.5:8443
+      PUBLIC_PORT: ${EDGE_PORT:-8000}   # the console builds team links with it
+      STACK_MODE: local
     ports: ["${FRONTEND_PORT:-8080}:8080"]
     networks: { cstam-net: { ipv4_address: 10.20.0.6 } }
     depends_on: [cpd]

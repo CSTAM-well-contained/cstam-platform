@@ -17,8 +17,8 @@ COPY . .
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime
-# Only ${CPD_UPSTREAM} is substituted in the template, so nginx's own $variables stay.
-ENV NGINX_ENVSUBST_FILTER=^CPD_UPSTREAM$ CPD_UPSTREAM=http://10.20.0.5:8443
+# Only these variables are substituted in the template, so nginx's own $variables stay.
+ENV NGINX_ENVSUBST_FILTER=^(CPD_UPSTREAM|PUBLIC_PORT|STACK_MODE)$ CPD_UPSTREAM=http://10.20.0.5:8443 PUBLIC_PORT=80 STACK_MODE=
 RUN rm -f /etc/nginx/conf.d/default.conf
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 EXPOSE 8080
