@@ -1,0 +1,24 @@
+# FelCloud mode (override): same stack, but cpd creates each team sandbox as a REAL VM on
+# FelCloud's OpenStack (CSTAM_DRIVER=openstack) instead of a local container.
+#
+#   make up-felcloud        (= docker compose -f docker-compose.yml -f docker-compose.felcloud.yml up -d)
+#
+# Needs in .env: OS_CLOUD (default cstam), CSTAM_NETWORK_ID, CSTAM_SUBNET_ID, CSTAM_TEAM_SG_ID
+# (`make felcloud-ids` fills them, read-only) and your clouds.yaml at OS_CLOUDS_YAML.
+#
+# What works: spin up / tear down from the console create / delete VMs you can watch in Horizon;
+# IPAM, leases, quarantine, gateways, failover and config rollback all run as usual.
+# What does not: the team page through the gateways. The gateways run on your laptop and
+# cannot reach FelCloud's private 10.20.0.0/24 (that needs FelCloud floating IPs). Quota: the
+# project has room for about 6 team VMs.
+services:
+  cpd:
+    environment:
+      CSTAM_DRIVER: openstack
+      OS_CLOUD: ${OS_CLOUD:-cstam}
+      OS_CLIENT_CONFIG_FILE: /etc/openstack/clouds.yaml
+      CSTAM_NETWORK_ID: ${CSTAM_NETWORK_ID:?run make felcloud-ids}
+      CSTAM_SUBNET_ID: ${CSTAM_SUBNET_ID:?run make felcloud-ids}
+      CSTAM_TEAM_SG_ID: ${CSTAM_TEAM_SG_ID:?run make felcloud-ids}
+    volumes:
+      - ${OS_CLOUDS_YAML:-${HOME}/.config/openstack/clouds.yaml}:/etc/openstack/clouds.yaml:ro

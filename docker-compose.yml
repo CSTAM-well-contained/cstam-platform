@@ -1,0 +1,118 @@
+# CSTAM, the whole platform on one machine, with FelCloud's IP plan (10.20.0.0/24):
+#
+#   10.20.0.4   postgres     source of truth (teams, leases, routes, events)
+#   10.20.0.5   cpd          control plane: REST API, IPAM, lifecycle  -> http://localhost:8443
+#   10.20.0.6   frontend     React admin console                       -> http://localhost:8080
+#   10.20.0.9   edge         the "floating IP": localhost:8000 -> VIP  -> http://<team>.demo.localhost:8000
+#   10.20.0.10  VIP          held by the MASTER gateway (keepalived)
+#   10.20.0.11  gw1          HAProxy + keepalived + gwagent, priority 150 (MASTER at start)
+#   10.20.0.12  gw2          same, priority 100 (BACKUP)
+#   .32-.191    team pool    one container per team, created by cpd (CSTAM_DRIVER=docker)
+#
+# Start: `make up` (writes .env with fresh tokens the first time). FelCloud mode: see README.
+
+name: cstam
+
+x-gateway: &gateway
+  build: { context: ./backend, target: gateway }
+  image: cstam/gateway:local
+  restart: unless-stopped
+  cap_add: [NET_ADMIN, NET_RAW, NET_BROADCAST]
+  depends_on:
+    cpd: { condition: service_healthy }
+  healthcheck:
+    test: ["CMD", "test", "-S", "/run/haproxy/admin.sock"]
+    interval: 5s
+    retries: 10
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: cstam-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: cstam
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cstam}
+      POSTGRES_DB: cstam
+    volumes: [pgdata:/var/lib/postgresql]
+    networks: { cstam-net: { ipv4_address: 10.20.0.4 } }
+    healthcheck:
+      test: ["CMD", "pg_isready", "-q", "-U", "cstam", "-d", "cstam"]
+      interval: 2s
+      retries: 30
+
+  cpd:
+    build: { context: ./backend, target: cpd }
+    image: cstam/cpd:local
+    container_name: cstam-cpd
+    restart: unless-stopped
+    command: ["-listen", "0.0.0.0:8443", "-workers", "${CPD_WORKERS:-4}", "-quarantine", "${QUARANTINE:-60s}"]
+    environment:
+      CSTAM_DB_DSN: postgres://cstam:${POSTGRES_PASSWORD:-cstam}@10.20.0.4:5432/cstam?sslmode=disable
+      CSTAM_ADMIN_TOKEN: ${CSTAM_ADMIN_TOKEN:?run make up (it creates .env)}
+      CSTAM_VIEWER_TOKEN: ${CSTAM_VIEWER_TOKEN:-}
+      CSTAM_GATEWAY_TOKEN: ${CSTAM_GATEWAY_TOKEN:?run make up (it creates .env)}
+      CSTAM_DRIVER: docker
+      CSTAM_DOCKER_NETWORK: cstam-net
+    volumes:
+      # docker driver: cpd starts team containers through the host's Docker
+      - /var/run/docker.sock:/var/run/docker.sock
+      # the default team page config is written here and bind-mounted into each team
+      # container by the Docker daemon, so the path must be the same on both sides
+      - /tmp/cstam-docker-sandbox:/tmp/cstam-docker-sandbox
+    ports: ["${CPD_PORT:-8443}:8443"]
+    networks: { cstam-net: { ipv4_address: 10.20.0.5 } }
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  gw1:
+    <<: *gateway
+    container_name: cstam-gw1
+    hostname: gw1
+    environment:
+      GW_NAME: gw1
+      CPD_URL: http://10.20.0.5:8443
+      CSTAM_GATEWAY_TOKEN: ${CSTAM_GATEWAY_TOKEN}
+    networks: { cstam-net: { ipv4_address: 10.20.0.11 } }
+
+  gw2:
+    <<: *gateway
+    container_name: cstam-gw2
+    hostname: gw2
+    environment:
+      GW_NAME: gw2
+      CPD_URL: http://10.20.0.5:8443
+      CSTAM_GATEWAY_TOKEN: ${CSTAM_GATEWAY_TOKEN}
+    networks: { cstam-net: { ipv4_address: 10.20.0.12 } }
+
+  edge:
+    image: haproxy:3.2
+    container_name: cstam-edge
+    restart: unless-stopped
+    volumes: ["./deploy/local/edge.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro"]
+    ports: ["${EDGE_PORT:-8000}:8000"]
+    networks: { cstam-net: { ipv4_address: 10.20.0.9 } }
+    depends_on: [gw1, gw2]
+
+  frontend:
+    build: { context: ./frontend }
+    image: cstam/frontend:local
+    container_name: cstam-frontend
+    restart: unless-stopped
+    environment:
+      CPD_UPSTREAM: http://10.20.0.5:8443
+    ports: ["${FRONTEND_PORT:-8080}:8080"]
+    networks: { cstam-net: { ipv4_address: 10.20.0.6 } }
+    depends_on: [cpd]
+
+networks:
+  cstam-net:
+    name: cstam-net          # fixed name: cpd's docker driver attaches team containers to it
+    ipam:
+      config:
+        - subnet: 10.20.0.0/24
+          gateway: 10.20.0.1
+          ip_range: 10.20.0.0/29   # automatic addresses stay out of the team pool
+
+volumes:
+  pgdata:

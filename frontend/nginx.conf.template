@@ -1,0 +1,43 @@
+# Rendered at container start by the nginx image (envsubst on /etc/nginx/templates/*.template).
+# Only ${CPD_UPSTREAM} is substituted (NGINX_ENVSUBST_FILTER in the Dockerfile), so nginx's
+# own $variables are left alone.
+
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    server_tokens off;
+
+    add_header Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Frame-Options "DENY" always;
+
+    # cpd sends no CORS headers: the API is reached on this origin and proxied.
+    location /v1/ {
+        proxy_pass ${CPD_UPSTREAM};
+        proxy_set_header Host $proxy_host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_connect_timeout 3s;
+        proxy_read_timeout 30s;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header X-Content-Type-Options;
+        proxy_hide_header Referrer-Policy;
+    }
+    location = /healthz {
+        proxy_pass ${CPD_UPSTREAM};
+        proxy_connect_timeout 3s;
+    }
+
+    # No add_header below this point: nginx would then drop the server-level headers above.
+    # Hashed build assets never change; index.html is always revalidated.
+    location /assets/ {
+        expires max;
+        try_files $uri =404;
+    }
+    location / {
+        expires -1;
+        try_files $uri /index.html;
+    }
+}

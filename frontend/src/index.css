@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: "Geist";
+  src: url("../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+/* Neutral grays; color only for state, always paired with an icon or a word. */
+:root {
+  --bg: #ffffff;
+  --subtle: #fafafa;
+  --fg: #0a0a0a;
+  --muted: #666666;
+  --border: #eaeaea;
+  --hover: #f2f2f2;
+  --ok: #0a7d32;
+  --warn: #a35200;
+  --bad: #d52020;
+  --info: #0062d1;
+  --ok-bg: #e9f8ee;
+  --warn-bg: #fff4e0;
+  --bad-bg: #fdecec;
+  --info-bg: #e8f1fd;
+}
+.dark {
+  --bg: #000000;
+  --subtle: #0a0a0a;
+  --fg: #ededed;
+  --muted: #a1a1a1;
+  --border: #222222;
+  --hover: #1a1a1a;
+  --ok: #3dd56d;
+  --warn: #ffb224;
+  --bad: #ff5c5c;
+  --info: #52a8ff;
+  --ok-bg: #0b2a17;
+  --warn-bg: #2e1e00;
+  --bad-bg: #300c0c;
+  --info-bg: #0a1d33;
+}
+
+@theme inline {
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+  --color-bg: var(--bg);
+  --color-subtle: var(--subtle);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-hover: var(--hover);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --color-info: var(--info);
+  --color-ok-bg: var(--ok-bg);
+  --color-warn-bg: var(--warn-bg);
+  --color-bad-bg: var(--bad-bg);
+  --color-info-bg: var(--info-bg);
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+  html {
+    background: var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-bg font-sans text-sm text-fg;
+  }
+  :focus-visible {
+    outline: 2px solid var(--info);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
