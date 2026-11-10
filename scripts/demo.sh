@@ -130,10 +130,7 @@ up() {
     [ -n "${CSTAM_NETWORK_ID:-}" ] || die "FelCloud IDs missing in .env: run '$0 felcloud-ids' first"
     [ -s "${OS_CLOUDS_YAML:-$HOME/.config/openstack/clouds.yaml}" ] || die "no clouds.yaml (set OS_CLOUDS_YAML in .env)"
   fi
-  # the old demo (deploy/dev/demo.sh) used the same subnet under another name
-  if docker network inspect cstam-demo >/dev/null 2>&1; then
-    die "the old demo network 'cstam-demo' uses 10.20.0.0/24: run the old 'deploy/dev/demo.sh down' (or 'docker network rm cstam-demo') first"
-  fi
+  check_subnet
   mkdir -p /tmp/cstam-docker-sandbox 2>/dev/null || true
   say "building and starting the stack ($mode mode). First time: a few minutes."
   compose up -d --build
@@ -147,6 +144,31 @@ up() {
   [ -n "$(master)" ] || { compose logs --tail 20 gw1; die "no gateway became MASTER"; }
   note "VIP held by $(master)"
   urls
+}
+
+# check_subnet: 10.20.0.0/24 must be free. The old demo (cstam-demo), integration tests or another
+# project may hold it in a Docker network; a VPN or host interface may hold it too.
+check_subnet() {
+  local busy="" n
+  for n in $(docker network ls -q); do
+    docker network inspect -f '{{.Name}} {{range .IPAM.Config}}{{.Subnet}} {{end}}' "$n" 2>/dev/null
+  done | awk '$1 != "cstam-net" && / 10\.20\./ {print $1}' >"${TMPDIR:-/tmp}/cstam-nets" || true
+  busy=$(cat "${TMPDIR:-/tmp}/cstam-nets"); rm -f "${TMPDIR:-/tmp}/cstam-nets"
+  if [ -n "$busy" ]; then
+    echo "demo: these Docker networks already use 10.20.0.x (FelCloud's IP plan, needed by this stack):" >&2
+    for n in $busy; do
+      echo "   network '$n', containers: $(docker network inspect -f '{{range .Containers}}{{.Name}} {{end}}' "$n" 2>/dev/null)" >&2
+    done
+    echo "   free it: stop the old demo ('cd ../monorepo && deploy/dev/demo.sh down'), or remove them:" >&2
+    for n in $busy; do
+      echo "     docker rm -f \$(docker network inspect -f '{{range .Containers}}{{.Name}} {{end}}' $n) 2>/dev/null; docker network rm $n" >&2
+    done
+    exit 1
+  fi
+  if command -v ip >/dev/null && ip -4 -o addr 2>/dev/null | grep -v ' br-' | grep -q ' 10\.20\.0\.'; then
+    die "a network interface on this machine already has a 10.20.0.x address (VPN?): $(ip -4 -o addr | grep ' 10\.20\.0\.' | awk '{print $2, $4}' | head -1)"
+  fi
+  true
 }
 
 urls() {
