@@ -45,6 +45,10 @@ Open **http://localhost:8080** (React console) and paste the admin token that `m
 
 After `make teardown` the hackathon is ended (its name stays taken). The next `make seed` moves on to `demo2`, `demo3`... and saves the name in `.env`.
 
+**npm or Go downloads time out during the build?** Builds already use the host network, cache npm
+packages and retry. If it still fails, build the console on your machine and let Docker copy it:
+`cd frontend && npm ci && npm run build && cd ..`, set `FRONTEND_TARGET=prebuilt` in `.env`, then `make up`.
+
 ## Local or FelCloud? The three ways to run it
 
 The code is the same everywhere. Only two things change: **where the sandboxes are created** and

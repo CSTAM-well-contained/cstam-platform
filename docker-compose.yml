@@ -14,7 +14,7 @@
 name: cstam
 
 x-gateway: &gateway
-  build: { context: ./backend, target: gateway }
+  build: { context: ./backend, target: gateway, network: host }
   image: cstam/gateway:local
   restart: unless-stopped
   cap_add: [NET_ADMIN, NET_RAW, NET_BROADCAST]
@@ -42,7 +42,7 @@ services:
       retries: 30
 
   cpd:
-    build: { context: ./backend, target: cpd }
+    build: { context: ./backend, target: cpd, network: host }
     image: cstam/cpd:local
     container_name: cstam-cpd
     restart: unless-stopped
@@ -95,7 +95,10 @@ services:
     depends_on: [gw1, gw2]
 
   frontend:
-    build: { context: ./frontend }
+    build:
+      context: ./frontend
+      target: ${FRONTEND_TARGET:-app}   # prebuilt: use frontend/dist built on your machine
+      network: host                     # builds use the host's network (more reliable on WSL/VPN)
     image: cstam/frontend:local
     container_name: cstam-frontend
     restart: unless-stopped
