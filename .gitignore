@@ -16,3 +16,7 @@ frontend/dist/
 frontend/playwright-report/
 frontend/test-results/
 infra/pulumi/pulumi
+# showcase: team tokens, demo video
+.showcase/
+_video_tmp/
+demo-video/

@@ -54,6 +54,8 @@ services:
       CSTAM_GATEWAY_TOKEN: ${CSTAM_GATEWAY_TOKEN:?run make up (it creates .env)}
       CSTAM_DRIVER: docker
       CSTAM_DOCKER_NETWORK: cstam-net
+      # false on hosts where no-new-privileges breaks exec (Docker from snap); `make up` probes it
+      CSTAM_DOCKER_NO_NEW_PRIVS: ${DOCKER_NO_NEW_PRIVS:-true}
     volumes:
       # docker driver: cpd starts team containers through the host's Docker
       - /var/run/docker.sock:/var/run/docker.sock

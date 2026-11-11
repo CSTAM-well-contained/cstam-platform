@@ -113,10 +113,27 @@ func TestRunArgs(t *testing.T) {
 			t.Errorf("default app args lack %q: %s", want, args)
 		}
 	}
+	if !strings.Contains(args, "--security-opt no-new-privileges") {
+		t.Errorf("no-new-privileges missing by default: %s", args)
+	}
 	s := spec()
 	s.Image = "nginx:1.27"
 	args = strings.Join(d.runArgs(s), " ")
 	if !strings.HasSuffix(args, " nginx:1.27") || strings.Contains(args, "haproxy.cfg") {
+		t.Errorf("custom image args: %s", args)
+	}
+}
+
+func TestRunArgsAllowNewPrivileges(t *testing.T) {
+	d := newDriver(t, &script{})
+	d.cfg.AllowNewPrivileges = true
+	s := spec()
+	s.Image = "nginx:1.27"
+	args := strings.Join(d.runArgs(s), " ")
+	if strings.Contains(args, "no-new-privileges") {
+		t.Errorf("no-new-privileges still set: %s", args)
+	}
+	if !strings.HasSuffix(args, " nginx:1.27") || !strings.Contains(args, "--cap-drop NET_RAW") {
 		t.Errorf("custom image args: %s", args)
 	}
 }

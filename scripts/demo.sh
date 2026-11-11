@@ -139,6 +139,7 @@ up() {
   mkdir -p /tmp/cstam-docker-sandbox 2>/dev/null || true
   say "building and starting the stack ($mode mode). First time: a few minutes."
   compose up -d --build
+  check_nnp
   local ids; ids=$(docker ps -aq --filter label=cstam.sandbox --filter status=exited)
   [ -z "$ids" ] || { note "restarting $(wc -w <<<"$ids") team sandboxes"; docker start $ids >/dev/null; }
   say "waiting for cpd"
@@ -149,6 +150,23 @@ up() {
   [ -n "$(master)" ] || { compose logs --tail 20 gw1; die "no gateway became MASTER"; }
   note "VIP held by $(master)"
   urls
+}
+
+# check_nnp: team containers run with --security-opt no-new-privileges. Docker installed from
+# snap (AppArmor) refuses to exec any entrypoint with it ("exec /docker-entrypoint.sh: operation
+# not permitted"): every team container then restarts forever and every team page is a 503.
+# Probe once with the edge's image; if it fails that way, run team containers without the flag.
+check_nnp() {
+  [ "${DOCKER_NO_NEW_PRIVS:-true}" = false ] && { note "team containers run without no-new-privileges (DOCKER_NO_NEW_PRIVS=false in .env)"; return; }
+  local out; out=$(docker run --rm --security-opt no-new-privileges haproxy:3.2 haproxy -v 2>&1 || true)
+  if grep -qi "operation not permitted" <<<"$out"; then
+    note "this Docker can't exec containers with no-new-privileges (Docker from snap?): turning it off for team containers"
+    note "  ($out)"
+    sed -i.bak '/^DOCKER_NO_NEW_PRIVS=/d' .env && rm -f .env.bak
+    echo "DOCKER_NO_NEW_PRIVS=false" >>.env
+    export DOCKER_NO_NEW_PRIVS=false
+    compose up -d cpd >/dev/null
+  fi
 }
 
 # check_subnet: 10.20.0.0/24 must be free. The old demo (cstam-demo), integration tests or another

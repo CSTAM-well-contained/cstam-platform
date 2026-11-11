@@ -4,7 +4,7 @@
 D := scripts/demo.sh
 
 .PHONY: up up-felcloud down reset fresh status urls logs demo seed spinup portal stress traffic failover crash config teardown \
-        felcloud-check felcloud-ids test test-backend test-frontend build
+        felcloud-check felcloud-ids test test-backend test-frontend build showcase showcase-mock orbit-image
 
 up:             ## build and start everything locally (http://localhost:8080)
 	@$(D) up
@@ -43,6 +43,13 @@ config:         ## broken config -> automatic rollback -> manual rollback
 	@$(D) config
 teardown:       ## end the hackathon, watch the IPs get recycled
 	@$(D) teardown
+
+showcase:       ## the demo video, live: hackathon, 24 teams, a team deploys a site (make showcase IMAGE=nginx:alpine)
+	@scripts/showcase.sh run $(IMAGE)
+showcase-mock:  ## same story on the mock (console + simulated cpd, http://localhost:8090), no full stack
+	@MOCK=1 scripts/showcase.sh run
+orbit-image:    ## build the mock team site cstam/orbit-landing:1.0 (demo/orbit-site)
+	docker build -t cstam/orbit-landing:1.0 demo/orbit-site
 
 felcloud-check: ## read-only: our FelCloud VMs, floating IPs, quota
 	@$(D) felcloud-check

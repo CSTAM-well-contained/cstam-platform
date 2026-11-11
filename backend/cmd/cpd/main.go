@@ -7,6 +7,8 @@
 //	CSTAM_GATEWAY_TOKEN  bearer token of the gateway agents (required, >= 16 chars)
 //	CSTAM_DRIVER         openstack (default), docker (containers, local demo) or fake (in-memory)
 //	CSTAM_DOCKER_NETWORK Docker network of the docker driver (default cstam-demo)
+//	CSTAM_DOCKER_NO_NEW_PRIVS  false: team containers run without no-new-privileges
+//	                     (hosts where it breaks exec, e.g. Docker from snap). Default true.
 //	OS_CLOUD             clouds.yaml entry, for the openstack driver
 //	CSTAM_NETWORK_ID, CSTAM_SUBNET_ID, CSTAM_TEAM_SG_ID
 //	                     from `pulumi stack output` (networkId, subnetId, teamSecGroupId)
@@ -126,8 +128,12 @@ func driver(ctx context.Context, log *slog.Logger) (lifecycle.Sandboxes, error) 
 		if network == "" {
 			network = "cstam-demo"
 		}
+		allow := os.Getenv("CSTAM_DOCKER_NO_NEW_PRIVS") == "false"
 		log.Info("using the docker sandbox driver: one container per team", "network", network)
-		return docker.New(docker.Config{Network: network})
+		if allow {
+			log.Warn("team containers run without no-new-privileges (CSTAM_DOCKER_NO_NEW_PRIVS=false)")
+		}
+		return docker.New(docker.Config{Network: network, AllowNewPrivileges: allow})
 	case "", "openstack":
 		return openstack.New(ctx, openstack.Config{
 			NetworkID:      os.Getenv("CSTAM_NETWORK_ID"),

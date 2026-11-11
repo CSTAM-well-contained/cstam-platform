@@ -1,0 +1,16 @@
+# Mock mode: the console and a simulated cpd in one container, on http://localhost:8090.
+# Same /v1 API as the real stack, so scripts/showcase.sh drives both.
+#   docker compose -f demo/docker-compose.mock.yml up -d --build
+name: cstam-mock
+services:
+  mock:
+    build: { context: .., dockerfile: demo/mock/Dockerfile, network: host }
+    image: cstam/mock:local
+    container_name: cstam-mock
+    environment:
+      CSTAM_ADMIN_TOKEN: ${CSTAM_ADMIN_TOKEN:-1b4850a40736cb65bccc586e893081bb}
+      CSTAM_VIEWER_TOKEN: ${CSTAM_VIEWER_TOKEN:-61beeacba74860fad2aa59f1e6645e8e}
+      PUBLIC_PORT: "8090"
+      SEED: ${MOCK_SEED:-1}
+    ports: ["8090:8090"]
+    restart: unless-stopped

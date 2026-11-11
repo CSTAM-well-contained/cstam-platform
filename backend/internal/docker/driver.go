@@ -59,6 +59,11 @@ type Config struct {
 	CPUs   string        // per team container, default 0.5
 	Run    Runner        // default CLI
 	Wait   time.Duration // how long Create waits for the container to run (default 20 s)
+	// AllowNewPrivileges drops --security-opt no-new-privileges. Some hosts can't run
+	// containers with it: Docker from snap (AppArmor denies the entrypoint's exec: "exec
+	// /docker-entrypoint.sh: operation not permitted"). Off by default; the demo turns it on
+	// only when its probe container fails that way.
+	AllowNewPrivileges bool
 }
 
 // Driver creates team containers.
@@ -172,11 +177,13 @@ func (d *Driver) runArgs(s lifecycle.Spec) []string {
 		"--label", Label + "=" + s.Hackathon, "--label", "cstam.team=" + s.Team,
 		"--restart", "unless-stopped",
 		"--memory", d.cfg.Memory, "--cpus", d.cfg.CPUs, "--pids-limit", "256",
-		"--security-opt", "no-new-privileges",
 		// the app may listen on a port below 1024 without any capability
 		"--sysctl", "net.ipv4.ip_unprivileged_port_start=0",
 		"-e", "TEAM=" + s.Team, "-e", "HACKATHON=" + s.Hackathon,
 		"-e", "TEAM_IP=" + s.IP.String(), "-e", "APP_PORT=" + port, "-e", "PORT=" + port,
+	}
+	if !d.cfg.AllowNewPrivileges {
+		args = append(args, "--security-opt", "no-new-privileges")
 	}
 	if s.Image != "" { // custom images (nginx...) may need CHOWN or SETUID at start
 		return append(args, "--cap-drop", "NET_RAW", s.Image)

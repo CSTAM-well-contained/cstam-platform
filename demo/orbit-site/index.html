@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Orbit · find your crew</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+@font-face{font-family:G;src:url(/Geist.woff2) format("woff2")}
+@font-face{font-family:GM;src:url(/GeistMono.woff2) format("woff2")}
+*{box-sizing:border-box}html,body{margin:0;height:100%}
+body{background:#07080a;color:#f2f2f0;font-family:G,system-ui,sans-serif;overflow:hidden}
+.bg{position:fixed;inset:0;background:radial-gradient(60% 60% at 70% 20%,rgba(255,122,61,.22),transparent 60%),radial-gradient(50% 50% at 15% 85%,rgba(120,90,255,.18),transparent 60%)}
+.grid{position:fixed;inset:0;background-image:radial-gradient(rgba(255,255,255,.07) 1px,transparent 1px);background-size:28px 28px;mask:linear-gradient(#000,transparent 85%)}
+nav{position:relative;display:flex;justify-content:space-between;align-items:center;padding:28px 56px;font-size:15px}
+.logo{display:flex;gap:10px;align-items:center;font-weight:700;letter-spacing:-.02em;font-size:20px}
+.logo i{width:22px;height:22px;border-radius:50%;border:2.5px solid #ff7a3d;position:relative}
+.logo i:after{content:"";position:absolute;width:7px;height:7px;background:#ff7a3d;border-radius:50%;top:-5px;right:-3px;animation:o 3s linear infinite;transform-origin:-4px 13px}
+@keyframes o{to{transform:rotate(360deg)}}
+nav span{color:#9a9a96;margin-left:28px}
+.btn{background:#f2f2f0;color:#07080a;padding:10px 18px;border-radius:999px;font-weight:600}
+main{position:relative;padding:70px 56px 0;display:grid;grid-template-columns:1.15fr 1fr;gap:40px;align-items:center}
+.tag{font-family:GM,monospace;font-size:13px;color:#ff9a6a;border:1px solid rgba(255,122,61,.35);border-radius:999px;padding:6px 12px;display:inline-block}
+h1{font-size:92px;line-height:.95;letter-spacing:-.045em;margin:22px 0 22px;font-weight:700}
+h1 em{font-style:normal;background:linear-gradient(90deg,#ff7a3d,#ffb36b);-webkit-background-clip:text;color:transparent}
+p.lead{font-size:21px;color:#b3b3ae;max-width:520px;line-height:1.45}
+.cta{display:flex;gap:12px;margin-top:30px}.cta a{padding:15px 24px;border-radius:12px;font-weight:600;font-size:16px}
+.p{background:#ff7a3d;color:#120700}.s{border:1px solid #2a2b2e;color:#ddd}
+.card{background:rgba(20,21,24,.75);border:1px solid #232428;border-radius:20px;padding:22px;backdrop-filter:blur(8px)}
+.row{display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:1px solid #1d1e21}
+.row:last-child{border:0}.av{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;color:#0a0a0a}
+.row b{display:block;font-size:15px}.row small{color:#8b8b87;font-size:13px}
+.m{margin-left:auto;font-family:GM,monospace;font-size:12px;color:#6ee79a}
+.served{position:fixed;left:56px;bottom:28px;font-family:GM,monospace;font-size:13px;color:#8b8b87;display:flex;gap:18px}
+.served b{color:#6ee79a;font-weight:500}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#6ee79a;margin-right:8px;box-shadow:0 0 12px #6ee79a;animation:b 1.6s infinite}
+@keyframes b{50%{opacity:.35}}
+</style></head>
+<body><div class="bg"></div><div class="grid"></div>
+<nav><div class="logo"><i></i>orbit</div><div><span>Teams</span><span>Mentors</span><span>Schedule</span><span style="margin-right:28px">Live board</span><a class="btn">Join the finals</a></div></nav>
+<main>
+<div>
+<div class="tag">● live at <span id="hack">your hackathon</span></div>
+<h1>Find your crew<br>in <em>orbit.</em></h1>
+<p class="lead">Match with teammates by skill, timezone and vibe. Built in 36 hours, deployed to a CSTAM sandbox in one click.</p>
+<div class="cta"><a class="p">Start matching →</a><a class="s">See the live board</a></div>
+</div>
+<div class="card">
+<div style="display:flex;justify-content:space-between;color:#8b8b87;font-size:13px;margin-bottom:6px"><span>MATCHES RIGHT NOW</span><span style="font-family:GM,monospace" id="c">1,284</span></div>
+<div class="row"><div class="av" style="background:#ff9a6a">YB</div><div><b>Yasmine B.</b><small>React · Figma · Tunis</small></div><span class="m">97% match</span></div>
+<div class="row"><div class="av" style="background:#9b8cff">SK</div><div><b>Skander K.</b><small>Go · Kubernetes · Sousse</small></div><span class="m">94% match</span></div>
+<div class="row"><div class="av" style="background:#6ee79a">RM</div><div><b>Rania M.</b><small>ML · PyTorch · Sfax</small></div><span class="m">91% match</span></div>
+<div class="row"><div class="av" style="background:#ffd36b">AH</div><div><b>Aziz H.</b><small>Rust · Embedded · Bizerte</small></div><span class="m">88% match</span></div>
+</div>
+</main>
+<div class="served"><span><span class="dot"></span>served by <b><span id="gw">VIP</span></b></span><span>sandbox <b>__IP__</b></span><span>team <b>__TEAM__</b></span><span><span id="host"></span></span></div>
+<script>
+// hackathon = the domain after the team label; gateway = X-Served-By, set by HAProxy on the gateways
+const h=location.hostname.split('.');document.getElementById('host').textContent=location.host;
+if(h.length>2)document.getElementById('hack').textContent=h[1];
+fetch(location.pathname,{method:'HEAD',cache:'no-store'}).then(r=>{const g=r.headers.get('x-served-by');if(g)document.getElementById('gw').textContent=g}).catch(()=>{});
+let n=1284;setInterval(()=>{n+=Math.floor(Math.random()*3);document.getElementById('c').textContent=n.toLocaleString('en')},700)</script>
+</body></html>
