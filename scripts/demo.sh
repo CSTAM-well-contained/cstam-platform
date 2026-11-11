@@ -135,6 +135,7 @@ up() {
     [ -s "${OS_CLOUDS_YAML:-$HOME/.config/openstack/clouds.yaml}" ] || die "no clouds.yaml (set OS_CLOUDS_YAML in .env)"
   fi
   check_subnet
+  check_prebuilt
   mkdir -p /tmp/cstam-docker-sandbox 2>/dev/null || true
   say "building and starting the stack ($mode mode). First time: a few minutes."
   compose up -d --build
@@ -173,6 +174,18 @@ check_subnet() {
     die "a network interface on this machine already has a 10.20.0.x address (VPN?): $(ip -4 -o addr | grep ' 10\.20\.0\.' | awk '{print $2, $4}' | head -1)"
   fi
   true
+}
+
+# check_prebuilt: FRONTEND_TARGET=prebuilt ships frontend/dist as it is, so a dist built from
+# older source silently serves an old console (missing pages and buttons).
+check_prebuilt() {
+  [ "${FRONTEND_TARGET:-app}" = prebuilt ] || return 0
+  [ -s frontend/dist/index.html ] ||
+    die "FRONTEND_TARGET=prebuilt but frontend/dist is missing: cd frontend && npm ci && npm run build"
+  if [ -n "$(find frontend/src frontend/index.html frontend/package.json -newer frontend/dist/index.html -print -quit 2>/dev/null)" ]; then
+    printf '\033[1;33m!! frontend/dist is older than the console source (FRONTEND_TARGET=prebuilt): the console may miss\n' >&2
+    printf '!! recent features. Rebuild it: cd frontend && npm ci && npm run build   (or set FRONTEND_TARGET=app)\033[0m\n' >&2
+  fi
 }
 
 urls() {
