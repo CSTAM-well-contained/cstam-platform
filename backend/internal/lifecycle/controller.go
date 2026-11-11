@@ -111,7 +111,11 @@ func (c *Controller) CreateTeam(ctx context.Context, hackathon, name string, app
 		return Team{}, err
 	}
 	var id int64
-	err := store.InTx(ctx, c.db, func(tx pgx.Tx) error {
+	token, hash, err := newToken()
+	if err != nil {
+		return Team{}, err
+	}
+	err = store.InTx(ctx, c.db, func(tx pgx.Tx) error {
 		var hid int64
 		var state string
 		err := tx.QueryRow(ctx, `SELECT id, state FROM hackathons WHERE name = $1 FOR SHARE`, hackathon).Scan(&hid, &state)
@@ -125,9 +129,9 @@ func (c *Controller) CreateTeam(ctx context.Context, hackathon, name string, app
 			return fmt.Errorf("hackathon %s: %w", hackathon, ErrNotActive)
 		}
 		err = tx.QueryRow(ctx,
-			`INSERT INTO teams (hackathon_id, name, state, app_port, image, lease_expires_at)
-			 SELECT $1, $2, 'provisioning', $3, $4, now() + lease_ttl FROM hackathons WHERE id = $1
-			 RETURNING id`, hid, name, appPort, image).Scan(&id)
+			`INSERT INTO teams (hackathon_id, name, state, app_port, image, token_hash, lease_expires_at)
+			 SELECT $1, $2, 'provisioning', $3, $4, $5, now() + lease_ttl FROM hackathons WHERE id = $1
+			 RETURNING id`, hid, name, appPort, image, hash).Scan(&id)
 		if pgCode(err) == "23505" {
 			return fmt.Errorf("team %s in %s: %w", name, hackathon, ErrConflict)
 		}
@@ -143,7 +147,9 @@ func (c *Controller) CreateTeam(ctx context.Context, hackathon, name string, app
 		return Team{}, err
 	}
 	c.spawn(id, c.provision)
-	return c.Team(ctx, id)
+	t, err := c.Team(ctx, id)
+	t.Token = token
+	return t, err
 }
 
 func specOf(t Team) Spec {

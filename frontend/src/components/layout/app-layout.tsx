@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, useLocation } from "react-router";
+import { useWhoami } from "@/api/queries";
 import { useToken } from "@/lib/auth";
 import { AlertBanners } from "./live";
 import { CommandMenu } from "./command-menu";
@@ -18,6 +19,15 @@ export function AppLayout() {
   }, [token, qc]);
 
   if (!token) return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+  return <AdminShell cmd={cmd} setCmd={setCmd} />;
+}
+
+// AdminShell renders the admin pages once the role is known: a team token goes to its portal
+// before any admin query runs (they would answer 401 and sign the team out).
+function AdminShell({ cmd, setCmd }: { cmd: boolean; setCmd: (o: boolean) => void }) {
+  const who = useWhoami();
+  if (who.isLoading) return <p className="p-8 text-muted">Loading…</p>;
+  if (who.data?.role === "team") return <Navigate to="/my-team" replace />;
 
   return (
     <div className="min-h-dvh">

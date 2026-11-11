@@ -366,6 +366,311 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/v1/teams/{id}/deploy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components["parameters"]["TeamID"];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Redeploy the team's sandbox with a container image (same IP, slot and route) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: components["parameters"]["TeamID"];
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["DeployIn"];
+        };
+      };
+      responses: {
+        /** @description redeploying (state provisioning) */
+        202: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["Team"];
+          };
+        };
+        400: components["responses"]["BadRequest"];
+        401: components["responses"]["Unauthorized"];
+        404: components["responses"]["NotFound"];
+        409: components["responses"]["Conflict"];
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/teams/{id}/expose": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components["parameters"]["TeamID"];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Publish the team's subdomain on the gateways (true) or take it off (false) */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: components["parameters"]["TeamID"];
+        };
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ExposeIn"];
+        };
+      };
+      responses: {
+        /** @description team */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["Team"];
+          };
+        };
+        400: components["responses"]["BadRequest"];
+        401: components["responses"]["Unauthorized"];
+        404: components["responses"]["NotFound"];
+        409: components["responses"]["Conflict"];
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/teams/{id}/token": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: components["parameters"]["TeamID"];
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Issue a new team portal token (the old one stops working); shown only in this answer */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path: {
+          id: components["parameters"]["TeamID"];
+        };
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description token */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              token: string;
+            };
+          };
+        };
+        401: components["responses"]["Unauthorized"];
+        404: components["responses"]["NotFound"];
+        409: components["responses"]["Conflict"];
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/team": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** The caller's own team (team portal token) */
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description team */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["Team"];
+          };
+        };
+        401: components["responses"]["Unauthorized"];
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/team/deploy": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Deploy a container image to the caller's sandbox */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["DeployIn"];
+        };
+      };
+      responses: {
+        /** @description redeploying */
+        202: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["Team"];
+          };
+        };
+        400: components["responses"]["BadRequest"];
+        401: components["responses"]["Unauthorized"];
+        409: components["responses"]["Conflict"];
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/team/expose": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Make the caller's subdomain public or private */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["ExposeIn"];
+        };
+      };
+      responses: {
+        /** @description team */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["Team"];
+          };
+        };
+        400: components["responses"]["BadRequest"];
+        401: components["responses"]["Unauthorized"];
+        409: components["responses"]["Conflict"];
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/v1/team/renew": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Extend the caller's lease */
+    post: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description new expiry */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              /** Format: date-time */
+              lease_expires_at: string;
+            };
+          };
+        };
+        401: components["responses"]["Unauthorized"];
+        409: components["responses"]["Conflict"];
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/v1/status": {
     parameters: {
       query?: never;
@@ -410,7 +715,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Which role the token has (admin, or viewer = read-only); the dashboard hides its buttons for a viewer */
+    /** Which role the token has (admin, viewer = read-only, or team = the team portal) */
     get: {
       parameters: {
         query?: never;
@@ -420,7 +725,7 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
-        /** @description role */
+        /** @description role; a team token also names its team */
         200: {
           headers: {
             [name: string]: unknown;
@@ -428,7 +733,9 @@ export interface paths {
           content: {
             "application/json": {
               /** @enum {string} */
-              role?: "admin" | "viewer";
+              role?: "admin" | "viewer" | "team";
+              team?: string;
+              hackathon?: string;
             };
           };
         };
@@ -1064,12 +1371,31 @@ export interface components {
       slot?: number;
       app_port?: number;
       image?: string;
+      /** @description false: the subdomain is off the gateways, the sandbox keeps running */
+      exposed?: boolean;
       /** Format: date-time */
       lease_expires_at?: string;
-      /** @description why the team failed */
+      /** @description why the team failed, or why its last deploy failed */
       error?: string;
       /** Format: date-time */
       created_at?: string;
+      /** @description the team portal token, only in the answer that creates the team */
+      token?: string;
+    };
+    DeployIn: {
+      /**
+       * @description container image, e.g. nginx:alpine; empty = the platform's default page
+       * @example nginx:alpine
+       */
+      image?: string;
+      /**
+       * @description port the image listens on: 80 or 8000-8099 (default 80)
+       * @example 80
+       */
+      app_port?: number;
+    };
+    ExposeIn: {
+      exposed: boolean;
     };
     Gateway: {
       name?: string;

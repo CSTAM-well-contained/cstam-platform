@@ -29,7 +29,7 @@ export default function Login() {
       qc.setQueryData(["whoami"], who);
       auth.signIn(t);
       setValue("");
-      navigate(from, { replace: true });
+      navigate(who.role === "team" ? "/my-team" : from, { replace: true });
     } catch (err) {
       setError(
         err instanceof ApiError && err.status === 401
@@ -53,7 +53,7 @@ export default function Login() {
         </div>
         <Field
           label="Token"
-          hint="An admin token can change things; a viewer token only watches. The token stays in this browser tab and is sent only to this server."
+          hint="Admin token: full control. Viewer token: watch only. Team token: your own sandbox. The token stays in this browser tab and is sent only to this server."
         >
           <Input
             type="password"
@@ -62,7 +62,7 @@ export default function Login() {
             minLength={16}
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            placeholder="paste the admin or viewer token"
+            placeholder="paste your admin, viewer or team token"
             autoFocus
           />
         </Field>

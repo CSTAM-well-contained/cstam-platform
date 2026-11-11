@@ -49,6 +49,7 @@ rollback). The viewer token sees every page live, but the console hides the butt
 | --- | --- |
 | `make demo` | **Guided jury demo**: one step per Enter, each with a caption |
 | `make spinup NAME=alpha` | One team, timed from the API call to its own page answering through the VIP |
+| `make portal NAME=alpha` | A team token for the team portal (creates the team if needed) |
 | `make stress N=20` | 20 registrations at once: p50/p95, all IPs distinct |
 | `make failover` | Planned failover (~0.3 s), then failback |
 | `make crash` | Freezes the MASTER gateway; keepalived moves the VIP in ~1.5 s |
@@ -63,6 +64,22 @@ After `make teardown` the hackathon is ended (its name stays taken). The next `m
 **npm or Go downloads time out during the build?** Builds already use the host network, cache npm
 packages and retry. If it still fails, build the console on your machine and let Docker copy it:
 `cd frontend && npm ci && npm run build && cd ..`, set `FRONTEND_TARGET=prebuilt` in `.env`, then `make up`.
+
+## Team portal
+
+Each team gets its own **team token** (`team_…`). It comes back when the team is created, and an admin
+can issue a new one from the team's drawer in the console ("New team token") or with `make portal NAME=alpha`.
+When a team signs in at the console with that token, it lands on its own portal, not the admin pages:
+
+- **Deploy**: any container image (`nginx:alpine`, `ghcr.io/you/app:1.0`…) listening on port 80 or 8000-8099.
+  The sandbox keeps its IP, slot and subdomain. Visitors see a maintenance page for the few seconds the
+  swap takes. If the image doesn't start, the previous version comes back and the reason shows in the portal.
+- **Make public / Make private**: private takes the subdomain off both gateways (it answers 404). The app
+  keeps running, with no reload.
+- **Extend** the lease.
+
+A team token only works on `/v1/team/...`, for that one team. Admins can do the same on any team with
+`POST /v1/teams/{id}/deploy`, `/expose` and `/token`.
 
 ## Local or FelCloud? The three ways to run it
 

@@ -22,6 +22,8 @@ var (
 	ErrNotFound  = errors.New("not found")
 	ErrConflict  = errors.New("already exists")
 	ErrNotActive = errors.New("hackathon is not active")
+	// ErrBusy: the team is not ready (still starting, redeploying or going away); retry later.
+	ErrBusy = errors.New("team is busy")
 )
 
 var (
@@ -52,10 +54,13 @@ type Team struct {
 	Slot           int       `json:"slot,omitempty"`
 	AppPort        int       `json:"app_port"`
 	Image          string    `json:"image,omitempty"`
+	Exposed        bool      `json:"exposed"` // false: no route on the gateways, the sandbox keeps running
 	LeaseExpiresAt time.Time `json:"lease_expires_at"`
 	Error          string    `json:"error,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
-	ref            string
+	// Token is the team's portal token, set only in the answer that creates it (never stored).
+	Token string `json:"token,omitempty"`
+	ref   string
 }
 
 // Gateway is what cpd knows about one gateway agent.
@@ -156,14 +161,14 @@ func (c *Controller) Hackathon(ctx context.Context, name string) (Hackathon, err
 }
 
 const teamSelect = `SELECT t.id, h.name, h.domain, t.name, t.state, coalesce(host(t.ip), ''), coalesce(t.slot, 0),
-	t.app_port, t.image, t.lease_expires_at, t.error, t.created_at, t.sandbox_ref
+	t.app_port, t.image, t.exposed, t.lease_expires_at, t.error, t.created_at, t.sandbox_ref
 	FROM teams t JOIN hackathons h ON h.id = t.hackathon_id`
 
 func scanTeam(row pgx.CollectableRow) (Team, error) {
 	var t Team
 	var domain string
 	err := row.Scan(&t.ID, &t.Hackathon, &domain, &t.Name, &t.State, &t.IP, &t.Slot,
-		&t.AppPort, &t.Image, &t.LeaseExpiresAt, &t.Error, &t.CreatedAt, &t.ref)
+		&t.AppPort, &t.Image, &t.Exposed, &t.LeaseExpiresAt, &t.Error, &t.CreatedAt, &t.ref)
 	t.FQDN = t.Name + "." + domain
 	return t, err
 }
@@ -226,7 +231,8 @@ func (c *Controller) desired(ctx context.Context) (model.Desired, error) {
 			rows, err := tx.Query(ctx,
 				`SELECT t.name || '.' || h.domain, t.slot, host(t.ip), t.app_port
 				 FROM teams t JOIN hackathons h ON h.id = t.hackathon_id
-				 WHERE t.state = 'ready' ORDER BY t.slot`)
+				 WHERE t.exposed AND (t.state = 'ready' OR (t.state = 'provisioning' AND t.sandbox_ref <> ''))
+				 ORDER BY t.slot`) // a redeploying team keeps its route: visitors see the maintenance page
 			if err != nil {
 				return err
 			}

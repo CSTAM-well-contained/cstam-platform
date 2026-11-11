@@ -16,6 +16,8 @@ tags:
   - name: hackathons
   - name: teams
   - name: status
+  - name: portal
+    description: a team's own sandbox, team token only
   - name: gateways
     description: used by gwagent, gateway token only
 
@@ -137,6 +139,90 @@ paths:
         "404": {$ref: "#/components/responses/NotFound"}
         "409": {$ref: "#/components/responses/Conflict"}
 
+  /v1/teams/{id}/deploy:
+    parameters: [{$ref: "#/components/parameters/TeamID"}]
+    post:
+      tags: [teams]
+      summary: Redeploy the team's sandbox with a container image (same IP, slot and route)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/DeployIn"}}}}
+      responses:
+        "202": {description: redeploying (state provisioning), content: {application/json: {schema: {$ref: "#/components/schemas/Team"}}}}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409": {$ref: "#/components/responses/Conflict"}
+
+  /v1/teams/{id}/expose:
+    parameters: [{$ref: "#/components/parameters/TeamID"}]
+    post:
+      tags: [teams]
+      summary: Publish the team's subdomain on the gateways (true) or take it off (false)
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ExposeIn"}}}}
+      responses:
+        "200": {description: team, content: {application/json: {schema: {$ref: "#/components/schemas/Team"}}}}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409": {$ref: "#/components/responses/Conflict"}
+
+  /v1/teams/{id}/token:
+    parameters: [{$ref: "#/components/parameters/TeamID"}]
+    post:
+      tags: [teams]
+      summary: Issue a new team portal token (the old one stops working); shown only in this answer
+      responses:
+        "200": {description: token, content: {application/json: {schema: {type: object, required: [token], properties: {token: {type: string}}}}}}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "404": {$ref: "#/components/responses/NotFound"}
+        "409": {$ref: "#/components/responses/Conflict"}
+
+  /v1/team:
+    get:
+      tags: [portal]
+      summary: The caller's own team (team portal token)
+      security: [{team: []}]
+      responses:
+        "200": {description: team, content: {application/json: {schema: {$ref: "#/components/schemas/Team"}}}}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+
+  /v1/team/deploy:
+    post:
+      tags: [portal]
+      summary: Deploy a container image to the caller's sandbox
+      security: [{team: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/DeployIn"}}}}
+      responses:
+        "202": {description: redeploying, content: {application/json: {schema: {$ref: "#/components/schemas/Team"}}}}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "409": {$ref: "#/components/responses/Conflict"}
+
+  /v1/team/expose:
+    post:
+      tags: [portal]
+      summary: Make the caller's subdomain public or private
+      security: [{team: []}]
+      requestBody: {required: true, content: {application/json: {schema: {$ref: "#/components/schemas/ExposeIn"}}}}
+      responses:
+        "200": {description: team, content: {application/json: {schema: {$ref: "#/components/schemas/Team"}}}}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "409": {$ref: "#/components/responses/Conflict"}
+
+  /v1/team/renew:
+    post:
+      tags: [portal]
+      summary: Extend the caller's lease
+      security: [{team: []}]
+      responses:
+        "200":
+          description: new expiry
+          content:
+            application/json:
+              schema: {type: object, required: [lease_expires_at], properties: {lease_expires_at: {type: string, format: date-time}}}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "409": {$ref: "#/components/responses/Conflict"}
+
   /v1/status:
     get:
       tags: [status]
@@ -148,9 +234,19 @@ paths:
   /v1/whoami:
     get:
       tags: [status]
-      summary: Which role the token has (admin, or viewer = read-only); the dashboard hides its buttons for a viewer
+      summary: Which role the token has (admin, viewer = read-only, or team = the team portal)
+      security: [{admin: []}, {team: []}]
       responses:
-        "200": {description: role, content: {application/json: {schema: {type: object, properties: {role: {type: string, enum: [admin, viewer]}}}}}}
+        "200":
+          description: role; a team token also names its team
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  role: {type: string, enum: [admin, viewer, team]}
+                  team: {type: string}
+                  hackathon: {type: string}
         "401": {$ref: "#/components/responses/Unauthorized"}
 
   /v1/teams:
@@ -328,6 +424,7 @@ components:
   securitySchemes:
     admin: {type: http, scheme: bearer, description: CSTAM_ADMIN_TOKEN (at least 16 characters)}
     gateway: {type: http, scheme: bearer, description: CSTAM_GATEWAY_TOKEN, different from the admin token}
+    team: {type: http, scheme: bearer, description: "a team's portal token (team_ + 40 hex), returned when the team is created or by POST /v1/teams/{id}/token"}
     # Optional CSTAM_VIEWER_TOKEN: accepted on every admin GET route (403 on writes), for a
     # read-only dashboard. It is the same "admin" scheme from the client's point of view.
 
@@ -397,9 +494,21 @@ components:
         slot: {type: integer, minimum: 1, maximum: 128}
         app_port: {type: integer}
         image: {type: string}
+        exposed: {type: boolean, description: "false: the subdomain is off the gateways, the sandbox keeps running"}
         lease_expires_at: {type: string, format: date-time}
-        error: {type: string, description: "why the team failed"}
+        error: {type: string, description: "why the team failed, or why its last deploy failed"}
         created_at: {type: string, format: date-time}
+        token: {type: string, description: "the team portal token, only in the answer that creates the team"}
+    DeployIn:
+      type: object
+      properties:
+        image: {type: string, description: "container image, e.g. nginx:alpine; empty = the platform's default page", example: "nginx:alpine"}
+        app_port: {type: integer, description: "port the image listens on: 80 or 8000-8099 (default 80)", example: 80}
+    ExposeIn:
+      type: object
+      required: [exposed]
+      properties:
+        exposed: {type: boolean}
     Gateway:
       type: object
       properties:

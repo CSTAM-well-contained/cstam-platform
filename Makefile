@@ -3,7 +3,7 @@
 #   make up-felcloud   same, team sandboxes = real FelCloud VMs   make down      stop (keeps data)
 D := scripts/demo.sh
 
-.PHONY: up up-felcloud down reset status urls logs demo seed spinup stress traffic failover crash config teardown \
+.PHONY: up up-felcloud down reset status urls logs demo seed spinup portal stress traffic failover crash config teardown \
         felcloud-check felcloud-ids test test-backend test-frontend build
 
 up:             ## build and start everything locally (http://localhost:8080)
@@ -27,6 +27,8 @@ seed:           ## 4 teams (make seed N=8)
 	@$(D) seed $(or $(N),4)
 spinup:         ## one team, timed (make spinup NAME=alpha)
 	@$(D) spinup $(or $(NAME),alpha)
+portal:         ## a team's portal token (make portal NAME=alpha): deploy images, public/private
+	@$(D) portal $(or $(NAME),alpha)
 stress:         ## N teams at once (make stress N=50)
 	@$(D) stress $(or $(N),20)
 traffic:        ## steady load for the Traffic page (make traffic S=60)

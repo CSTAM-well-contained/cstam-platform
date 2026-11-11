@@ -55,6 +55,14 @@ func TestOpenAPIListsEveryRoute(t *testing.T) {
 			if !pubSec {
 				t.Errorf("openapi.yaml: %s must declare no security", r.pattern)
 			}
+		case teamOnly:
+			if !strings.Contains(rest, "security: [{team: []}]") {
+				t.Errorf("openapi.yaml: %s must declare the team token", r.pattern)
+			}
+		case anyRole:
+			if !strings.Contains(rest, "security: [{admin: []}, {team: []}]") {
+				t.Errorf("openapi.yaml: %s must declare the admin and team tokens", r.pattern)
+			}
 		default:
 			if gwSec || pubSec {
 				t.Errorf("openapi.yaml: %s must use the default admin token", r.pattern)

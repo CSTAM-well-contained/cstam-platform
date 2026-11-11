@@ -19,6 +19,7 @@ import (
 const (
 	adminTok = "admin-token-0123456789"
 	gwTok    = "gateway-token-0123456789"
+	teamTok  = "team_0123456789abcdef0123456789abcdef01234567"
 )
 
 // stub records the last call and returns err.
@@ -114,6 +115,26 @@ func (s *stub) RollbackConfig(_ context.Context, id int64) (lifecycle.ConfigVers
 func (s *stub) Routes(context.Context) (model.Desired, error) {
 	s.last = "Routes"
 	return model.Desired{Routes: []model.Route{}}, s.err
+}
+
+func (s *stub) TeamByToken(_ context.Context, tok string) (lifecycle.Team, error) {
+	s.last = "TeamByToken"
+	if tok != teamTok {
+		return lifecycle.Team{}, lifecycle.ErrNotFound
+	}
+	return lifecycle.Team{ID: 42, Name: "alpha", Hackathon: "demo"}, nil
+}
+func (s *stub) RotateToken(_ context.Context, id int64) (string, error) {
+	s.last = fmt.Sprint("RotateToken ", id)
+	return teamTok, s.err
+}
+func (s *stub) SetExposed(_ context.Context, id int64, exposed bool) (lifecycle.Team, error) {
+	s.last = fmt.Sprint("SetExposed ", id, " ", exposed)
+	return lifecycle.Team{ID: id, Exposed: exposed}, s.err
+}
+func (s *stub) Deploy(_ context.Context, id int64, image string, port int) (lifecycle.Team, error) {
+	s.last = fmt.Sprint("Deploy ", id, " ", image, " ", port)
+	return lifecycle.Team{ID: id, Image: image, AppPort: port}, s.err
 }
 
 func do(t *testing.T, st *stub, method, path, token, body string) *httptest.ResponseRecorder {

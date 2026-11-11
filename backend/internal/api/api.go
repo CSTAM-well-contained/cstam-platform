@@ -42,6 +42,10 @@ type Controller interface {
 	ConfigVersions(ctx context.Context) ([]lifecycle.ConfigVersion, error)
 	PushConfig(ctx context.Context, in lifecycle.ConfigIn) (lifecycle.ConfigVersion, error)
 	RollbackConfig(ctx context.Context, id int64) (lifecycle.ConfigVersion, error)
+	TeamByToken(ctx context.Context, token string) (lifecycle.Team, error)
+	RotateToken(ctx context.Context, id int64) (string, error)
+	SetExposed(ctx context.Context, id int64, exposed bool) (lifecycle.Team, error)
+	Deploy(ctx context.Context, id int64, image string, appPort int) (lifecycle.Team, error)
 }
 
 // MaxWait caps the desired-state long-poll (below common proxy idle timeouts).
@@ -68,6 +72,8 @@ const (
 	public token = iota
 	adminOnly
 	gatewayOnly
+	teamOnly // a team's own portal token: the routes act on that team only
+	anyRole  // admin, viewer or team token (whoami)
 )
 
 type route struct {
@@ -91,8 +97,15 @@ func (s *Server) routes() []route {
 		{"GET /v1/teams/{id}", adminOnly, s.getTeam},
 		{"POST /v1/teams/{id}/renew", adminOnly, s.renewTeam},
 		{"DELETE /v1/teams/{id}", adminOnly, s.deleteTeam},
+		{"POST /v1/teams/{id}/deploy", adminOnly, s.deployTeam},
+		{"POST /v1/teams/{id}/expose", adminOnly, s.exposeTeam},
+		{"POST /v1/teams/{id}/token", adminOnly, s.rotateToken},
+		{"GET /v1/team", teamOnly, s.myTeam},
+		{"POST /v1/team/deploy", teamOnly, s.myDeploy},
+		{"POST /v1/team/expose", teamOnly, s.myExpose},
+		{"POST /v1/team/renew", teamOnly, s.myRenew},
 		{"GET /v1/status", adminOnly, s.status},
-		{"GET /v1/whoami", adminOnly, s.whoami},
+		{"GET /v1/whoami", anyRole, s.whoami},
 		{"GET /v1/teams", adminOnly, s.allTeams},
 		{"GET /v1/events", adminOnly, s.events},
 		{"GET /v1/ipam", adminOnly, s.addresses},
@@ -126,6 +139,10 @@ func (s *Server) Handler() http.Handler {
 			mux.Handle(r.pattern, s.adminAuth(strings.HasPrefix(r.pattern, "GET "), r.h))
 		case gatewayOnly:
 			mux.Handle(r.pattern, s.auth(s.GatewayToken, r.h))
+		case teamOnly:
+			mux.Handle(r.pattern, s.teamAuth(r.h))
+		case anyRole:
+			mux.Handle(r.pattern, s.anyAuth(r.h))
 		default:
 			mux.Handle(r.pattern, r.h)
 		}
@@ -175,8 +192,139 @@ func (s *Server) adminAuth(read bool, next http.Handler) http.Handler {
 	})
 }
 
+type ctxKey int
+
+const teamKey ctxKey = 1
+
+// bearer returns the token of the Authorization header, or "".
+func bearer(r *http.Request) string {
+	t, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(t)
+}
+
+// teamOf resolves a team portal token; ok=false when the request carries none that is live.
+func (s *Server) teamOf(r *http.Request) (lifecycle.Team, bool) {
+	t := bearer(r)
+	if t == "" || !strings.HasPrefix(t, "team_") {
+		return lifecycle.Team{}, false
+	}
+	team, err := s.C.TeamByToken(r.Context(), t)
+	return team, err == nil
+}
+
+// teamAuth lets a team token through and puts that team's id in the request context.
+func (s *Server) teamAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		team, ok := s.teamOf(r)
+		if !ok {
+			if s.role(r) != "" {
+				writeError(w, http.StatusForbidden, "these routes take a team token")
+				return
+			}
+			writeError(w, http.StatusUnauthorized, "missing or wrong bearer token")
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), teamKey, team.ID)))
+	})
+}
+
+// anyAuth lets the admin, viewer and team tokens through.
+func (s *Server) anyAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.role(r) == "" {
+			if _, ok := s.teamOf(r); !ok {
+				writeError(w, http.StatusUnauthorized, "missing or wrong bearer token")
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+type whoamiOut struct {
+	Role      string `json:"role"`
+	Team      string `json:"team,omitempty"`
+	Hackathon string `json:"hackathon,omitempty"`
+}
+
 func (s *Server) whoami(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"role": s.role(r)})
+	if role := s.role(r); role != "" {
+		writeJSON(w, http.StatusOK, whoamiOut{Role: role})
+		return
+	}
+	team, _ := s.teamOf(r)
+	writeJSON(w, http.StatusOK, whoamiOut{Role: "team", Team: team.Name, Hackathon: team.Hackathon})
+}
+
+type deployIn struct {
+	Image   string `json:"image"`
+	AppPort int    `json:"app_port"`
+}
+
+type exposeIn struct {
+	Exposed *bool `json:"exposed"`
+}
+
+func (s *Server) deploy(w http.ResponseWriter, r *http.Request, id int64) {
+	var in deployIn
+	if !s.decode(w, r, &in) {
+		return
+	}
+	t, err := s.C.Deploy(r.Context(), id, in.Image, in.AppPort)
+	s.reply(w, r, http.StatusAccepted, t, err)
+}
+
+func (s *Server) expose(w http.ResponseWriter, r *http.Request, id int64) {
+	var in exposeIn
+	if !s.decode(w, r, &in) {
+		return
+	}
+	if in.Exposed == nil {
+		writeError(w, http.StatusBadRequest, "exposed (true or false) is required")
+		return
+	}
+	t, err := s.C.SetExposed(r.Context(), id, *in.Exposed)
+	s.reply(w, r, http.StatusOK, t, err)
+}
+
+func (s *Server) deployTeam(w http.ResponseWriter, r *http.Request) {
+	if id, ok := teamID(w, r); ok {
+		s.deploy(w, r, id)
+	}
+}
+
+func (s *Server) exposeTeam(w http.ResponseWriter, r *http.Request) {
+	if id, ok := teamID(w, r); ok {
+		s.expose(w, r, id)
+	}
+}
+
+func (s *Server) rotateToken(w http.ResponseWriter, r *http.Request) {
+	id, ok := teamID(w, r)
+	if !ok {
+		return
+	}
+	tok, err := s.C.RotateToken(r.Context(), id)
+	s.reply(w, r, http.StatusOK, map[string]string{"token": tok}, err)
+}
+
+func myID(r *http.Request) int64 { id, _ := r.Context().Value(teamKey).(int64); return id }
+
+func (s *Server) myTeam(w http.ResponseWriter, r *http.Request) {
+	t, err := s.C.Team(r.Context(), myID(r))
+	s.reply(w, r, http.StatusOK, t, err)
+}
+
+func (s *Server) myDeploy(w http.ResponseWriter, r *http.Request) { s.deploy(w, r, myID(r)) }
+
+func (s *Server) myExpose(w http.ResponseWriter, r *http.Request) { s.expose(w, r, myID(r)) }
+
+func (s *Server) myRenew(w http.ResponseWriter, r *http.Request) {
+	until, err := s.C.Renew(r.Context(), myID(r))
+	s.reply(w, r, http.StatusOK, map[string]time.Time{"lease_expires_at": until}, err)
 }
 
 type hackathonIn struct {
@@ -441,6 +589,7 @@ func (s *Server) reply(w http.ResponseWriter, r *http.Request, status int, v any
 	case errors.Is(err, lifecycle.ErrNotFound):
 		code = http.StatusNotFound
 	case errors.Is(err, lifecycle.ErrConflict), errors.Is(err, lifecycle.ErrNotActive), errors.Is(err, lifecycle.ErrNoPeer),
+		errors.Is(err, lifecycle.ErrBusy),
 		errors.Is(err, ipam.ErrLeaseExpired):
 		code = http.StatusConflict
 	case errors.Is(err, ipam.ErrPoolExhausted):

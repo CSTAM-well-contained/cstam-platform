@@ -7,6 +7,8 @@
 #   urls                console, API, tokens and team URLs
 #   seed [N]            hackathon $HACK with N teams (default 4), each checked through the VIP
 #   spinup NAME         one team, timed from the API call to its own page answering via the VIP
+#   portal [NAME]       a team's portal token (creates the team if needed): sign in with it to
+#                       deploy an image and make the app public or private
 #   stress [N]          N registrations at the same time (default 20): p50/p95, distinct IPs
 #   traffic [SECONDS]   steady HTTP load on every ready team (fills the console's Traffic page)
 #   failover [planned|crash]
@@ -197,6 +199,30 @@ seed() {
   felcloud_mode && { note "FelCloud mode: VMs take ~25 s each; watch Horizon > Instances"; return; }
   say "time from the API call to the team's own page through the VIP"
   for t in $(printf '%s\n' "${!start[@]}" | sort); do wait_team "$t.$DOMAIN" "${start[$t]}"; done
+}
+
+portal() {
+  local name=${1:-alpha} id tok r
+  hackathon
+  id=$(api GET "/v1/hackathons/$HACK/teams" | jq -r --arg n "$name" '[.[] | select(.name == $n)][0].id // empty')
+  if [ -z "$id" ]; then
+    r=$(api POST "/v1/hackathons/$HACK/teams" "{\"name\":\"$name\",\"app_port\":8080}")
+    jq -e .error <<<"$r" >/dev/null && die "team $name: $(jq -r .error <<<"$r")"
+    tok=$(jq -r .token <<<"$r")
+    felcloud_mode || wait_team "$name.$DOMAIN" "$(now)" >/dev/null
+  else
+    tok=$(api POST "/v1/teams/$id/token" | jq -r '.token // empty')
+    [ -n "$tok" ] || die "could not issue a token for $name"
+  fi
+  say "team portal for $name"
+  cat <<EOF2
+
+  Sign in at     $CONSOLE   (in a new tab: each tab keeps its own sign-in)
+  Team token     $tok
+  App address    http://$name.$DOMAIN:${EDGE_PORT:-8000}/
+  Try deploying  nginx:alpine on port 80, then Make private / Make public
+
+EOF2
 }
 
 spinup() {
@@ -402,17 +428,19 @@ jury() {
     pause "6. Bad config: validated, rolled back automatically, zero dropped requests (console: Config)"
     config
   fi
-  pause "7. Teardown: end the hackathon, IPs quarantined then recycled (console: IP pool)"
+  pause "7. Team portal: a team deploys its own image and decides if it is public"
+  portal "team01"
+  pause "8. Teardown: end the hackathon, IPs quarantined then recycled (console: IP pool)"
   teardown
   say "done. Thank you!"
 }
 
 case "${1:-}" in
-  up|urls|seed|spinup|stress|traffic|failover|config|teardown|status|jury) cmd=$1; shift; "$cmd" "$@" ;;
+  up|urls|seed|spinup|portal|stress|traffic|failover|config|teardown|status|jury) cmd=$1; shift; "$cmd" "$@" ;;
   logs) shift; compose logs -f --tail 50 "$@" ;;
   down) down ;;
   reset) reset ;;
   felcloud-check) felcloud_check ;;
   felcloud-ids) felcloud_ids ;;
-  *) sed -n '2,25p' "$0"; exit 2 ;;
+  *) sed -n '2,27p' "$0"; exit 2 ;;
 esac

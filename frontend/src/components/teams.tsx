@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { RefreshCw, Rocket, Trash2 } from "lucide-react";
+import { Eye, EyeOff, KeyRound, RefreshCw, Rocket, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSearchParams } from "react-router";
@@ -144,7 +144,13 @@ export function TeamsTable({
                 </Td>
                 <Td onClick={(e) => e.stopPropagation()}>
                   <Mono copy="subdomain">{t.fqdn}</Mono>
-                  <TeamLink fqdn={t.fqdn} ready={t.state === "ready"} />
+                  {t.exposed === false ? (
+                    <span className="ml-1 text-xs text-muted" title="off the gateways: answers 404">
+                      private
+                    </span>
+                  ) : (
+                    <TeamLink fqdn={t.fqdn} ready={t.state === "ready"} />
+                  )}
                 </Td>
                 <Td onClick={(e) => e.stopPropagation()}>
                   <Mono copy="IP">{t.ip}</Mono>
@@ -229,7 +235,11 @@ export function TeamDrawer() {
               <Detail k="Hackathon">{t.hackathon}</Detail>
               <Detail k="Subdomain">
                 <Mono copy="subdomain">{t.fqdn}</Mono>
-                <TeamLink fqdn={t.fqdn} ready={t.state === "ready"} />
+                {t.exposed === false ? (
+                  <span className="ml-1 text-xs text-muted">private (answers 404)</span>
+                ) : (
+                  <TeamLink fqdn={t.fqdn} ready={t.state === "ready"} />
+                )}
               </Detail>
               <Detail k="Private IP">
                 <Mono copy="IP">{t.ip}</Mono>
@@ -255,11 +265,60 @@ export function TeamDrawer() {
               </Detail>
             </dl>
             {admin && <TeamButtons t={t} actions={actions} />}
+            {admin && live(t) && <TeamAccess t={t} />}
           </>
         )}
         {actions.dialog}
       </SheetContent>
     </Dialog>
+  );
+}
+
+// TeamAccess: publish or hide the team's subdomain, and hand the team a portal token.
+function TeamAccess({ t }: { t: Team }) {
+  const [token, setToken] = useState("");
+  const expose = useAction(
+    (exposed: boolean) =>
+      call(api.POST("/v1/teams/{id}/expose", { params: { path: { id: t.id! } }, body: { exposed } })),
+    (r) => `${t.name}: ${r.exposed ? "public" : "private (404 at its subdomain)"}`,
+  );
+  const rotate = useAction(
+    () => call(api.POST("/v1/teams/{id}/token", { params: { path: { id: t.id! } } })),
+    () => `${t.name}: new team token (the old one no longer works)`,
+  );
+  return (
+    <section className="mt-5 grid gap-3 border-t pt-4">
+      <h3 className="font-medium">Team portal</h3>
+      <p className="text-[13px] text-muted">
+        With its token, the team signs in here, deploys an image and makes its app public or private.
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={expose.isPending}
+          onClick={() => expose.mutate(!t.exposed)}
+        >
+          {t.exposed ? <EyeOff /> : <Eye />}
+          {t.exposed ? "Make private" : "Make public"}
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          disabled={rotate.isPending}
+          onClick={() => rotate.mutate(undefined, { onSuccess: (r) => setToken(r.token ?? "") })}
+        >
+          <KeyRound />
+          New team token
+        </Button>
+      </div>
+      {token && (
+        <div className="rounded-md border border-warn/40 bg-warn-bg px-3 py-2 text-[13px]" role="status">
+          <div className="mb-1 text-warn">Give this to the team now: it is shown only once.</div>
+          <Mono copy="team token">{token}</Mono>
+        </div>
+      )}
+    </section>
   );
 }
 

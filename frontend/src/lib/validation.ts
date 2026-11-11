@@ -28,6 +28,15 @@ export const teamSchema = z.object({
   image: z.string().trim().max(255),
 });
 export type TeamForm = z.input<typeof teamSchema>;
+
+// Same image rule as cpd (registry/repo:tag@digest, nothing that could break out of a shell).
+const IMAGE = /^([a-z0-9]+([._/:@-][a-zA-Z0-9]+)*)?$/;
+export const deploySchema = z.object({
+  image: z.string().trim().max(255).regex(IMAGE, "an image such as nginx:alpine or ghcr.io/you/app:1.0"),
+  app_port: teamSchema.shape.app_port,
+});
+export type DeployForm = z.input<typeof deploySchema>;
+export type DeployValues = z.output<typeof deploySchema>;
 export type TeamValues = z.output<typeof teamSchema>;
 
 const PRINTABLE = /^[\x20-\x7e]*$/;

@@ -11,9 +11,11 @@ import Config from "@/pages/Config";
 import Events from "@/pages/Events";
 import RoutesPage from "@/pages/Routes";
 import NotFound from "@/pages/NotFound";
+import TeamPortal from "@/pages/TeamPortal";
 
 export const routes = [
   { path: "/login", element: <Login /> },
+  { path: "/my-team", element: <TeamPortal /> },
   {
     path: "/",
     // AppLayout sends a visitor without a token to /login.
