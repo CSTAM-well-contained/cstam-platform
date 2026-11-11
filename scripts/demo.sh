@@ -22,6 +22,7 @@
 #   logs [service]      follow logs (cpd, gw1, gw2, frontend, edge, postgres)
 #   down                stop everything, keep data and teams (up resumes)
 #   reset               remove everything, database included (up starts fresh)
+#   fresh               reset + up + pre-pull the demo images (nginx:alpine, traefik/whoami)
 #   jury                the guided demo: one step per Enter, with a caption for each
 #   felcloud-check      read-only: your FelCloud VMs, floating IPs, quota (openstack CLI)
 #   felcloud-ids        read-only: write the network/subnet/security group IDs into .env
@@ -109,8 +110,9 @@ hackathon() { # create $HACK if missing; an ended hackathon keeps its name, so m
     die "hackathon $HACK: $(jq -r .error <<<"$r")"
   fi
 }
-ready_hosts() { api GET "/v1/hackathons/$HACK/teams" | jq -r '[.[] | select(.state=="ready") | .fqdn] | join(",")'; }
-first_ready() { api GET "/v1/hackathons/$HACK/teams" | jq -r '[.[] | select(.state=="ready")][0].fqdn // empty'; }
+# ready, public teams of every hackathon (the ones created in the console included)
+ready_hosts() { api GET /v1/teams | jq -r '[.[] | select(.state=="ready" and .exposed != false) | .fqdn] | join(",")'; }
+first_ready() { api GET /v1/teams | jq -r '[.[] | select(.state=="ready" and .exposed != false)][0].fqdn // empty'; }
 wait_team() { # wait_team FQDN T0: wait until the team's own page answers through the VIP
   local host=$1 t0=$2 out="" team=${1%%.*}
   for _ in $(seq "${3:-300}"); do
@@ -276,7 +278,9 @@ traffic() {
   [ -n "$hosts" ] || die "no ready team (run: $0 seed)"
   local n; n=$(tr , '\n' <<<"$hosts" | wc -l)
   say "load: $n teams, ${secs}s, $((50 * n)) req/s through the VIP (open the console's Traffic page)"
-  docker exec cstam-cpd cstamctl load -url http://10.20.0.10/ -hosts "$hosts" -c 16 -d "${secs}s" -rate "$((50 * n))" || true
+  # -check-body=false: teams may run their own image (nginx...), not the default "team X" page
+  docker exec cstam-cpd cstamctl load -url http://10.20.0.10/ -hosts "$hosts" -c 16 -d "${secs}s" -rate "$((50 * n))" \
+    -check-body=false || true
 }
 
 failover() {
@@ -440,7 +444,10 @@ case "${1:-}" in
   logs) shift; compose logs -f --tail 50 "$@" ;;
   down) down ;;
   reset) reset ;;
+  fresh) reset; up; for img in nginx:alpine traefik/whoami; do
+           note "pre-pulling $img (team deploys start at once)"; docker pull -q "$img" >/dev/null 2>&1 || note "could not pull $img (offline?)"
+         done ;;
   felcloud-check) felcloud_check ;;
   felcloud-ids) felcloud_ids ;;
-  *) sed -n '2,27p' "$0"; exit 2 ;;
+  *) sed -n '2,28p' "$0"; exit 2 ;;
 esac

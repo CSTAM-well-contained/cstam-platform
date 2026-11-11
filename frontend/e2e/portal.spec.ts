@@ -35,7 +35,7 @@ test("a team signs in with its token, hides its app, deploys, and shows it again
   await expect(page.getByText(`${name} @ ${HACK}`)).toBeVisible();
 
   await page.getByRole("button", { name: "Make private" }).click();
-  await expect(page.getByText("private: the subdomain answers 404")).toBeVisible();
+  await expect(page.getByText("private: the subdomain answers 404, your app keeps running")).toBeVisible();
 
   await page.getByRole("button", { name: "default page" }).click();
   await page.getByLabel("Port it listens on").fill("8001");

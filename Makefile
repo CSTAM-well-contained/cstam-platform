@@ -3,7 +3,7 @@
 #   make up-felcloud   same, team sandboxes = real FelCloud VMs   make down      stop (keeps data)
 D := scripts/demo.sh
 
-.PHONY: up up-felcloud down reset status urls logs demo seed spinup portal stress traffic failover crash config teardown \
+.PHONY: up up-felcloud down reset fresh status urls logs demo seed spinup portal stress traffic failover crash config teardown \
         felcloud-check felcloud-ids test test-backend test-frontend build
 
 up:             ## build and start everything locally (http://localhost:8080)
@@ -12,6 +12,8 @@ up-felcloud:    ## start with the OpenStack driver: spin-ups create VMs on FelCl
 	@$(D) up felcloud
 down:           ## stop everything, keep data and teams (make up resumes)
 	@$(D) down
+fresh:          ## clean slate for a demo: reset + up + pre-pull nginx:alpine and traefik/whoami
+	@$(D) fresh
 reset:          ## remove everything, database included
 	@$(D) reset
 status:         ## gateways, teams, IP pool, containers

@@ -47,6 +47,7 @@ rollback). The viewer token sees every page live, but the console hides the butt
 
 | Command | What it shows |
 | --- | --- |
+| `make fresh` | Clean slate before a demo: wipe, start, pre-pull `nginx:alpine` and `traefik/whoami` |
 | `make demo` | **Guided jury demo**: one step per Enter, each with a caption |
 | `make spinup NAME=alpha` | One team, timed from the API call to its own page answering through the VIP |
 | `make portal NAME=alpha` | A team token for the team portal (creates the team if needed) |
